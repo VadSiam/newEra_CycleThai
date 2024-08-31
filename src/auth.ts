@@ -13,14 +13,16 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
     })
   ],
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }) {
       if (account) {
         token.accessToken = account.access_token;
+        token.stravaId = profile.id;
       }
       return token;
     },
-    async session({ session, token }: { session: any, token: any }) {
+    async session({ session, token }) {
       session.accessToken = token.accessToken;
+      session.user.stravaId = token.stravaId;
       return session;
     },
   },

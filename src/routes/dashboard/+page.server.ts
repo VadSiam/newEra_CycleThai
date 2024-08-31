@@ -3,7 +3,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const session = await locals.getSession();
+  const session = await locals.auth()
   if (!session) {
     throw redirect(307, '/');
   }
@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions = {
   fetchActivities: async ({ locals }) => {
-    const session = await locals.getSession();
+    const session = await locals.auth()
     if (!session || !session.accessToken) {
       throw error(500, 'No access token found in session');
     }
