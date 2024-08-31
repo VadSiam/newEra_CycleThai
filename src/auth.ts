@@ -25,7 +25,7 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
         console.log('######🚀 ~ existingUser:', existingUser)
         if (!existingUser) {
           await db.insert(users).values({
-            id: profile.id,
+            id: profile.id ?? '',
             name: profile.name ?? '',
             email: profile.email ?? '',
             stravaId: profile.id,

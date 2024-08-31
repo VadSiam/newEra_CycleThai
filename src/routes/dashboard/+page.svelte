@@ -23,7 +23,7 @@
   }
 
   let activities: any[] = [];
-  let climbingEfforts: Record<string, number> = {};
+  let climbingEfforts: Record<string, number> | {} = {};
   let loading = false;
 </script>
 
@@ -44,9 +44,9 @@
           loading = true;
           return async ({ result }) => {
             loading = false;
-            if (result.type === "success") {
-              activities = result.data.activities;
-              climbingEfforts = result.data.climbingEfforts;
+            if (result.type === "success" && result.data?.climbingEfforts) {
+              activities = result.data?.activities;
+              climbingEfforts = result.data?.climbingEfforts;
             }
           };
         }}

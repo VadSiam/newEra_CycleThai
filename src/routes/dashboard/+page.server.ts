@@ -1,5 +1,6 @@
-import { categorizeClimbingEfforts, getLastThreeActivities, getSegmentsForActivity } from '$lib/strava';
+import { categorizeClimbingEfforts, getLastActivities, getSegmentsForActivity } from '$lib/strava';
 import { error, redirect } from '@sveltejs/kit';
+import { saveClimbingEfforts } from '../../db/actions';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -23,7 +24,7 @@ export const actions = {
     }
 
     try {
-      const activities = await getLastThreeActivities(session.accessToken);
+      const activities = await getLastActivities(session.accessToken);
       console.log('@@@@@@@@@@@🚀 ~ activities:', activities)
 
       // Fetch segments for each activity
@@ -38,9 +39,22 @@ export const actions = {
       // Categorize climbing efforts
       const climbingEfforts = categorizeClimbingEfforts(uniqueSegments);
 
+      // Save climbing efforts to the database
+      let effortsSaved;
+      if (session.user.stravaId) {
+        effortsSaved = await saveClimbingEfforts(
+          session.user.id,
+          session.user.stravaId,
+          JSON.stringify(climbingEfforts)
+        );
+      } else {
+        effortsSaved = climbingEfforts;
+      }
+
       return {
         activities,
-        climbingEfforts
+        climbingEfforts,
+        effortsSaved,
       };
     } catch (err) {
       console.error('Error fetching data:', err);

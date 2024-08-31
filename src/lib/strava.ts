@@ -1,6 +1,6 @@
 import stravaApi from 'strava-v3';
 
-export async function getLastThreeActivities(accessToken: string): Promise<any[]> {
+export async function getLastActivities(accessToken: string): Promise<any[]> {
   const strava = new (stravaApi.client as any)(accessToken);
 
   try {
