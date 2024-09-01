@@ -21,6 +21,8 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
         token.stravaId = profile.id;
 
         // Check if user exists, if not create a new one
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         const existingUser = await db.select().from(users).where(eq(users.stravaId, profile.id)).get();
         console.log('######🚀 ~ existingUser:', existingUser)
         if (!existingUser) {
@@ -39,6 +41,8 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
     },
     async session({ session, token }) {
       if (token.stravaId) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         const user = await db.select().from(users).where(eq(users.stravaId, token.stravaId)).get();
         if (user) {
           session.user = {

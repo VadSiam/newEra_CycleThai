@@ -15,6 +15,13 @@
       "when": 1725103804516,
       "tag": "0001_legal_nighthawk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1725184796978,
+      "tag": "0002_complete_zaladane",
+      "breakpoints": true
     }
   ]
 }

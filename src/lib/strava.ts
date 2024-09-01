@@ -1,13 +1,30 @@
 import stravaApi from 'strava-v3';
+import { updateUserLastActivityDate } from '../db';
 
-export async function getLastActivities(accessToken: string): Promise<any[]> {
+function getOneWeekAgoTimestamp(): number {
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  return Math.floor(oneWeekAgo.getTime() / 1000);
+}
+
+export async function getLastActivities(accessToken: string, userId: string, lastActivityRecordDate?: Date | null): Promise<any[]> {
   const strava = new (stravaApi.client as any)(accessToken);
 
   try {
+    const after = lastActivityRecordDate
+      ? Math.floor(lastActivityRecordDate.getTime() / 1000)
+      : getOneWeekAgoTimestamp();
+
     const payload = await strava.athlete.listActivities({
-      page: 1,
-      per_page: 3,
+      after,
+      per_page: 30,
     });
+
+    // Update lastActivityRecordDate in the database
+    if (payload.length > 0) {
+      const latestActivityDate = new Date(payload[0].start_date);
+      await updateUserLastActivityDate(userId, latestActivityDate);
+    }
 
     return payload.map((activity: any) => ({
       id: activity.id,
@@ -29,20 +46,6 @@ export async function getSegmentsForActivity(accessToken: string, activityId: nu
 
   try {
     const { segment_efforts } = await strava.activities.get({ 'id': activityId });
-
-    if (segment_efforts && segment_efforts.length > 0) {
-      const firstSegmentId = segment_efforts[0].segment.id;
-
-      // Optionally, you can fetch leaderboard data if needed
-      // const leaders = await strava.segments.listEfforts({
-      //   id: firstSegmentId,
-      //   // Uncomment and adjust date range if needed
-      //   // start_date_local: today,
-      //   // end_date_local: today 
-      // });
-
-      // console.log('🚀 ~ Leaders:', leaders.length);
-    }
 
     console.log('🚀 ~ Segment efforts:', segment_efforts.length);
     return segment_efforts;
