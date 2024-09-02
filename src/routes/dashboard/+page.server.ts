@@ -13,7 +13,6 @@ type UserHere = {
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   const session = await locals.auth();
-  console.log('🚀 ~ cookies.get:', cookies.get('authjs.session-token'))
   if (!session || !cookies.get('authjs.session-token')) {
     throw redirect(307, '/');
   }

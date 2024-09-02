@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
+  import Map from "$lib/Map.svelte";
   import { signOut } from "@auth/sveltekit/client";
 
   if (!$page.data.session) {
@@ -98,6 +99,7 @@
       {:else}
         <p>No climbing efforts data available.</p>
       {/if}
+      <Map />
     </main>
   </div>
 {:else}
