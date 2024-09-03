@@ -2,6 +2,8 @@
   import { browser } from "$app/environment";
   import type {
     LatLng,
+    LatLngBounds,
+    LatLngTuple,
     LeafletEventHandlerFn,
     Map as LeafletMap,
     LeafletMouseEvent,
@@ -12,19 +14,30 @@
   let mapContainer: HTMLElement;
   let map: LeafletMap;
   let rectangle: Rectangle | null = null;
-  let tempRectangle: Rectangle | null = null;
-  let firstPoint: LatLng | null = null;
-  let isDrawing = false;
+  let startPoint: LatLng | null = null;
+  let coords: LatLngTuple[] | null = null;
+
+  const isDeviceMobile = false; // Set this to your actual mobile detection logic
+
+  function calculateCorners(bounds: LatLngBounds | null) {
+    if (!bounds) return null;
+    const northEast = bounds.getNorthEast();
+    const southWest = bounds.getSouthWest();
+    const northWest = bounds.getNorthWest();
+    const southEast = bounds.getSouthEast();
+
+    return [
+      [northWest.lat, northWest.lng],
+      [northEast.lat, northEast.lng],
+      [southEast.lat, southEast.lng],
+      [southWest.lat, southWest.lng],
+    ];
+  }
 
   onMount(async () => {
     if (browser) {
       const leaflet = await import("leaflet");
-      map = leaflet
-        .map(mapContainer, {
-          dragging: false, // Disable default dragging
-          tap: false, // Disable tap handler
-        })
-        .setView([18.7883, 98.9853], 13);
+      map = leaflet.map(mapContainer).setView([18.7883, 98.9853], 13);
 
       leaflet
         .tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -33,86 +46,70 @@
         })
         .addTo(map);
 
-      // Enable dragging only for two-finger touch
-      map.dragging.enable();
-      map.dragging.handler?.disable();
-      map.on("touchstart", onTouchStart as LeafletEventHandlerFn);
-
-      map.on("mousedown", onMouseDown as LeafletEventHandlerFn);
-      map.on("mousemove", onMouseMove as LeafletEventHandlerFn);
-      map.on("mouseup", onMouseUp as LeafletEventHandlerFn);
+      map.on("click", handleClick as LeafletEventHandlerFn);
+      map.on("mousemove", handleMouseMove as LeafletEventHandlerFn);
     }
   });
 
-  function onTouchStart(e: LeafletMouseEvent & { touches: any[] }) {
-    if (e.touches && e.touches.length === 2) {
-      map.dragging.handler.enable();
+  function handleClick(e: LeafletMouseEvent) {
+    const leaflet = (window as any).L;
+    if (isDeviceMobile) {
+      const [start, end] = rectangle
+        ? [
+            rectangle.getBounds().getNorthWest(),
+            rectangle.getBounds().getSouthEast(),
+          ]
+        : [null, null];
+      if (start && end && (start.lat !== end.lat || start.lng !== end.lng)) {
+        startPoint = e.latlng;
+        updateRectangle(e.latlng);
+        return;
+      }
+    }
+
+    if (!startPoint) {
+      startPoint = e.latlng;
+      updateRectangle(e.latlng);
+    } else {
+      const bounds = rectangle ? rectangle.getBounds() : null;
+      const corners = calculateCorners(bounds);
+      if (isDeviceMobile) {
+        if (rectangle) {
+          updateRectangle(e.latlng);
+          const newBounds = leaflet.latLngBounds([startPoint, e.latlng]);
+          const newCorners = calculateCorners(newBounds);
+          const [, topRight, , bottomLeft] = newCorners as LatLngTuple[];
+          coords = [bottomLeft, topRight];
+          console.log("Final coordinates (mobile):", coords);
+        }
+      } else {
+        rectangle = null;
+        startPoint = null;
+      }
+      if (corners && !isDeviceMobile) {
+        const [, topRight, , bottomLeft] = corners as LatLngTuple[];
+        coords = [bottomLeft, topRight];
+        console.log("Final coordinates:", coords);
+      }
     }
   }
 
-  function onMouseDown(e: LeafletMouseEvent) {
-    isDrawing = true;
-    firstPoint = e.latlng;
-    updateTempRectangle(e.latlng);
-  }
-
-  function onMouseMove(e: LeafletMouseEvent) {
-    if (isDrawing && firstPoint) {
-      updateTempRectangle(e.latlng);
+  function handleMouseMove(e: LeafletMouseEvent) {
+    if (startPoint && !isDeviceMobile) {
+      updateRectangle(e.latlng);
     }
   }
 
-  function onMouseUp(e: LeafletMouseEvent) {
-    if (isDrawing && firstPoint) {
-      createFinalRectangle(e.latlng);
-      isDrawing = false;
-      firstPoint = null;
-    }
-  }
+  function updateRectangle(endPoint: LatLng) {
+    if (!map || !startPoint) return;
 
-  function updateTempRectangle(secondPoint: LatLng) {
-    if (!map || !firstPoint) return;
-
-    if (tempRectangle) {
-      map.removeLayer(tempRectangle);
-    }
-
-    const leaflet = (window as any).L; // Access Leaflet globally
-    const bounds = leaflet.latLngBounds(firstPoint, secondPoint);
-    tempRectangle = leaflet
-      .rectangle(bounds, {
-        color: "blue",
-        weight: 1,
-        opacity: 0.5,
-        dashArray: "5, 5",
-      })
-      .addTo(map);
-  }
-
-  function createFinalRectangle(secondPoint: LatLng) {
-    if (!map || !firstPoint) return;
-
+    const leaflet = (window as any).L;
     if (rectangle) {
       map.removeLayer(rectangle);
     }
-    if (tempRectangle) {
-      map.removeLayer(tempRectangle);
-    }
 
-    const leaflet = (window as any).L; // Access Leaflet globally
-    const bounds = leaflet.latLngBounds(firstPoint, secondPoint);
-    rectangle = leaflet
-      .rectangle(bounds, { color: "blue", weight: 2 })
-      .addTo(map);
-
-    const coords = [
-      bounds.getNorthWest(),
-      bounds.getNorthEast(),
-      bounds.getSouthEast(),
-      bounds.getSouthWest(),
-    ];
-
-    console.log("Square coordinates:", coords);
+    const bounds = leaflet.latLngBounds(startPoint, endPoint);
+    rectangle = leaflet.rectangle(bounds, { color: "purple" }).addTo(map);
   }
 
   onDestroy(() => {
