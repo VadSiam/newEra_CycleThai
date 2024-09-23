@@ -3,19 +3,22 @@
   import type {
     LatLng,
     LatLngBounds,
-    LatLngTuple,
     LeafletEventHandlerFn,
     Map as LeafletMap,
     LeafletMouseEvent,
     Rectangle,
   } from "leaflet";
   import { onDestroy, onMount } from "svelte";
+  import {
+    rectangleCoords,
+    resetRectangleCoords,
+    type LatLngTuple,
+  } from "./stores/mapStore";
 
   let mapContainer: HTMLElement;
   let map: LeafletMap;
   let rectangle: Rectangle | null = null;
   let startPoint: LatLng | null = null;
-  let coords: LatLngTuple[] | null = null;
 
   const isDeviceMobile = false; // Set this to your actual mobile detection logic
 
@@ -34,6 +37,7 @@
     ];
   }
 
+  // @ts-ignore
   onMount(async () => {
     if (browser) {
       const leaflet = await import("leaflet");
@@ -48,49 +52,39 @@
 
       map.on("click", handleClick as LeafletEventHandlerFn);
       map.on("mousemove", handleMouseMove as LeafletEventHandlerFn);
+
+      // Subscribe to rectangleCoords changes
+      const unsubscribe = rectangleCoords.subscribe((coords) => {
+        if (coords) {
+          updateRectangleFromCoords(coords);
+        } else if (rectangle) {
+          map.removeLayer(rectangle);
+          rectangle = null;
+        }
+      });
+
+      return () => {
+        unsubscribe();
+        if (map) {
+          map.remove();
+        }
+      };
     }
   });
 
   function handleClick(e: LeafletMouseEvent) {
-    const leaflet = (window as any).L;
-    if (isDeviceMobile) {
-      const [start, end] = rectangle
-        ? [
-            rectangle.getBounds().getNorthWest(),
-            rectangle.getBounds().getSouthEast(),
-          ]
-        : [null, null];
-      if (start && end && (start.lat !== end.lat || start.lng !== end.lng)) {
-        startPoint = e.latlng;
-        updateRectangle(e.latlng);
-        return;
-      }
-    }
-
     if (!startPoint) {
       startPoint = e.latlng;
       updateRectangle(e.latlng);
     } else {
       const bounds = rectangle ? rectangle.getBounds() : null;
       const corners = calculateCorners(bounds);
-      if (isDeviceMobile) {
-        if (rectangle) {
-          updateRectangle(e.latlng);
-          const newBounds = leaflet.latLngBounds([startPoint, e.latlng]);
-          const newCorners = calculateCorners(newBounds);
-          const [, topRight, , bottomLeft] = newCorners as LatLngTuple[];
-          coords = [bottomLeft, topRight];
-          console.log("Final coordinates (mobile):", coords);
-        }
-      } else {
-        rectangle = null;
-        startPoint = null;
-      }
-      if (corners && !isDeviceMobile) {
+      if (corners) {
         const [, topRight, , bottomLeft] = corners as LatLngTuple[];
-        coords = [bottomLeft, topRight];
-        console.log("Final coordinates:", coords);
+        rectangleCoords.set([bottomLeft, topRight]);
+        console.log("Final coordinates:", [bottomLeft, topRight]);
       }
+      startPoint = null;
     }
   }
 
@@ -110,6 +104,23 @@
 
     const bounds = leaflet.latLngBounds(startPoint, endPoint);
     rectangle = leaflet.rectangle(bounds, { color: "purple" }).addTo(map);
+  }
+
+  function updateRectangleFromCoords(coords: [LatLngTuple, LatLngTuple]) {
+    if (!map) return;
+
+    const leaflet = (window as any).L;
+    if (rectangle) {
+      map.removeLayer(rectangle);
+    }
+
+    const bounds = leaflet.latLngBounds(coords);
+    rectangle = leaflet.rectangle(bounds, { color: "purple" }).addTo(map);
+  }
+
+  // You can call this function to reset the rectangle
+  function resetRectangle() {
+    resetRectangleCoords();
   }
 
   onDestroy(() => {
