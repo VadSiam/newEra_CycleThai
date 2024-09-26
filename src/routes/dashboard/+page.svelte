@@ -42,9 +42,20 @@
       <button on:click={handleSignOut} class="logout-button">Log out</button>
     </header>
     <main>
-      <p>Welcome, {$page.data.session.user?.name}!</p>
+      <h3>Welcome, {$page.data.session.user?.name}!</h3>
       <p>You're successfully signed in with Strava.</p>
+      <br />
+      <br />
+      <br />
 
+      <h3>Select area to find segments and push the button then</h3>
+      <Map />
+      <br />
+      <br />
+      <br />
+      <SegmentsTable />
+      <br />
+      <br />
       <form
         method="POST"
         action="?/fetchActivities"
@@ -65,7 +76,7 @@
         </button>
       </form>
 
-      <h2>Your Last 3 Activities</h2>
+      <!-- <h2>Your Last 3 Activities</h2>
       {#if activities.length > 0}
         <ul>
           {#each activities as activity}
@@ -84,7 +95,7 @@
           No activities fetched yet. Click the button above to fetch your
           activities and segments.
         </p>
-      {/if}
+      {/if} -->
 
       <h2>Climbing Efforts</h2>
       {#if Object.keys(climbingEfforts).length > 0}
@@ -109,8 +120,6 @@
       {:else}
         <p>No climbing efforts data available.</p>
       {/if}
-      <Map />
-      <SegmentsTable />
     </main>
   </div>
 {:else}

@@ -83,7 +83,6 @@
             <th scope="col" class="px-6 py-3">Name</th>
             <th scope="col" class="px-6 py-3">Distance</th>
             <th scope="col" class="px-6 py-3">VAM(KOM)</th>
-            <th scope="col" class="px-6 py-3">VAM(QOM)</th>
             <th scope="col" class="px-6 py-3">Climb cat.</th>
             <th scope="col" class="px-6 py-3">Elevation</th>
             <th scope="col" class="px-6 py-3">Avg grade</th>
@@ -109,7 +108,6 @@
               </th>
               <td class="px-6 py-4">{segment.distance}</td>
               <td class="px-6 py-4">{segment.kVAM}</td>
-              <td class="px-6 py-4">{segment.qVAM}</td>
               <td class="px-6 py-4">{segment.category}</td>
               <td class="px-6 py-4">{segment.elevationGain}</td>
               <td class="px-6 py-4">{segment.averageGrade}</td>
@@ -124,7 +122,7 @@
     <button
       on:click={fetchSegments}
       type="button"
-      class="w-64 focus:outline-none text-white bg-purple-700 hover:bg-purple-800 focus:ring-4 focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 mb-2 dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-900"
+      class="fetch-button"
       disabled={loading}
     >
       {loading ? "Loading..." : "GET SEGMENTS"}
@@ -139,3 +137,15 @@
     <p>Loading segments...</p>
   {/if}
 </div>
+
+<style>
+  .fetch-button {
+    padding: 8px 16px;
+    background-color: #4c4faf;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 20px;
+  }
+</style>
