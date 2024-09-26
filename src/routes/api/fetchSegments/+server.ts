@@ -1,0 +1,173 @@
+import { parseHTML } from '$lib/helpers.parse'; // Make sure to create this helper function
+import { error, json } from '@sveltejs/kit';
+import stravaApi from 'strava-v3';
+import type { RequestHandler } from './$types';
+
+export interface Segment {
+  id: number;
+  name: string;
+  category: string;
+  distance: number;
+  elevationGain: string;
+  averageGrade: number;
+  maximum_grade: number;
+  elevation_high: string;
+  elevation_low: string;
+  time: string;
+  kVAM: number;
+  qVAM: number;
+}
+
+export const POST: RequestHandler = async ({ request, locals }) => {
+  const session = await locals.auth();
+  if (!session?.accessToken) {
+    throw error(401, 'Unauthorized');
+  }
+
+  const { coords } = await request.json();
+  if (!coords || coords.length !== 4) {
+    throw error(400, 'Invalid coordinates');
+  }
+
+  const [swLat, swLon, neLat, neLon] = coords;
+  const segmentsVAMForTable = await fetchData(session.accessToken, [swLat, swLon, neLat, neLon]);
+  return json(segmentsVAMForTable);
+};
+
+async function fetchData(accessToken: string, coords: number[]) {
+  console.log('🚀 ~ coords:', coords)
+  const [swLat, swLon, neLat, neLon] = coords;
+  const areaToExplore = calculateArea([swLat, swLon, neLat, neLon]);
+
+  let targetSize = 10; // default target size for splitting
+  if (areaToExplore > 30) {
+    targetSize = 10;
+  } else if (areaToExplore > 17) {
+    targetSize = 8.5;
+  }
+
+  const splitAreas = (areaToExplore <= 17 ? coords : splitArea(swLat, swLon, neLat, neLon, targetSize)).map(String);
+  const mixedAreas = [...splitAreas, coords.map(String).join(', ')];
+
+  const segments = await fetchSegmentsForAreas(mixedAreas, accessToken)
+    .then(allSegments => {
+      const clearedSegments = allSegments.filter(segment => !!segment);
+      const flattened = clearedSegments.flatMap(item => item.segments);
+
+      const uniqueIds = new Set();
+      return flattened.filter(segment => {
+        if (uniqueIds.has(segment.id)) {
+          return false;
+        } else {
+          uniqueIds.add(segment.id);
+          return true;
+        }
+      });
+    })
+    .catch(error => {
+      console.error("There was an error fetching the segments:", error);
+      return [];
+    });
+
+
+  const segmentsParseDetailsPromises = segments.map(async (segment: any) => {
+    try {
+      const response = await fetch(`https://www.strava.com/segments/${segment.id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const htmlContent = await response.text();
+      const parsingData = parseHTML(htmlContent);
+
+      return { ...parsingData, legacySegment: segment };
+    } catch (error) {
+      console.error(`Error fetching or parsing segment ${segment.id}:`, error);
+      return null;
+    }
+  });
+
+  const segmentsParseResponses = await Promise.all(segmentsParseDetailsPromises);
+
+  const filteredSegmentsParseResponses = segmentsParseResponses.filter((seg: any) => seg && seg.legacySegment?.id);
+
+  const segmentsVAMForTable = filteredSegmentsParseResponses.map((seg: any) => {
+    return {
+      id: seg.legacySegment.id,
+      name: seg.legacySegment.name,
+      category: seg.legacySegment.climb_category_desc || `${seg.legacySegment.climb_category}`,
+      distance: seg.legacySegment.distance,
+      averageGrade: seg.legacySegment.avg_grade,
+      maximum_grade: seg.maximum_grade || 0,
+      elevation_high: seg.elevation_high || '0',
+      elevation_low: seg.elevation_low || '0',
+      elevationGain: seg.elevationGain || `${seg.legacySegment.elev_difference}` || '0',
+      time: seg.athlete_segment_stats?.pr_elapsed_time || '0',
+      kVAM: seg.vam || 0,
+      qVAM: 0,
+    };
+  });
+
+  return segmentsVAMForTable;
+};
+
+async function fetchSegmentsForAreas(areas: string[], accessToken: string): Promise<any[]> {
+  const strava = new (stravaApi.client as any)(accessToken);
+
+  const fetchPromises = areas.map(async (area) => {
+    try {
+      const response = await new Promise((resolve, reject) => {
+        strava.segments.explore({
+          bounds: area,
+          activity_type: 'riding',
+          min_cat: 0,
+          max_cat: 5
+        }, (err: any, payload: any) => {
+          if (err) reject(err);
+          else resolve(payload);
+        });
+      });
+
+      return response;
+    } catch (error) {
+      console.error(`Error fetching segments for area ${area}:`, error);
+      return null;
+    }
+  });
+
+  const results = await Promise.all(fetchPromises);
+  return results.filter(result => result !== null);
+}
+
+function calculateArea(coords: number[]): number {
+  const [swLat, swLon, neLat, neLon] = coords;
+  const width = Math.abs(neLon - swLon);
+  const height = Math.abs(neLat - swLat);
+  return width * height;
+}
+
+function splitArea(swLat: number, swLon: number, neLat: number, neLon: number, targetSize: number): number[][] {
+  const width = Math.abs(neLon - swLon);
+  const height = Math.abs(neLat - swLat);
+  const numCols = Math.ceil(width / targetSize);
+  const numRows = Math.ceil(height / targetSize);
+
+  const areas: number[][] = [];
+  for (let i = 0; i < numRows; i++) {
+    for (let j = 0; j < numCols; j++) {
+      const areaSwLat = swLat + (i * height) / numRows;
+      const areaSwLon = swLon + (j * width) / numCols;
+      const areaNeLat = Math.min(swLat + ((i + 1) * height) / numRows, neLat);
+      const areaNeLon = Math.min(swLon + ((j + 1) * width) / numCols, neLon);
+      areas.push([areaSwLat, areaSwLon, areaNeLat, areaNeLon]);
+    }
+  }
+
+  return areas;
+}

@@ -135,7 +135,7 @@ export function categorizeClimbingEfforts(efforts: StravaEffort[]): CyclingPaces
     const vam = timeInMinutes ? ((elevationGain * 60) / timeInMinutes) : 0; // VAM calculation
 
     // Choose category based on steepness
-    const baseCategory: distanceCategory = getNearestCategory(effort?.distance, distanceCategories);
+    const baseCategory = getNearestCategory(effort?.distance, distanceCategories) as distanceCategory;
     const categorySuffix = isGradeSteep ? 's' : '';
     const category: distanceCategoryFull = `${baseCategory}${categorySuffix}` as distanceCategoryFull;
 

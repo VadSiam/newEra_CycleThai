@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import Map from "$lib/Map.svelte";
+  import SegmentsTable from "$lib/SegmentsTable.svelte";
   import { signOut } from "@auth/sveltekit/client";
 
   if (!$page.data.session) {
@@ -26,6 +27,12 @@
   let activities: any[] = [];
   let climbingEfforts: Record<string, number> | {} = {};
   let loading = false;
+
+  import { setContext } from "svelte";
+  import { writable } from "svelte/store";
+
+  const session = writable($page.data.session);
+  setContext("session", session);
 </script>
 
 {#if $page.data.session}
@@ -46,6 +53,7 @@
           return async ({ result }) => {
             loading = false;
             if (result.type === "success" && result.data?.climbingEfforts) {
+              // @ts-ignore
               activities = result.data?.activities;
               climbingEfforts = result.data?.climbingEfforts;
             }
@@ -100,6 +108,7 @@
         <p>No climbing efforts data available.</p>
       {/if}
       <Map />
+      <SegmentsTable />
     </main>
   </div>
 {:else}
