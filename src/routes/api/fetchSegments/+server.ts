@@ -2,6 +2,7 @@ import { parseHTML } from '$lib/helpers.parse'; // Make sure to create this help
 import { error, json } from '@sveltejs/kit';
 import stravaApi from 'strava-v3';
 import type { RequestHandler } from './$types';
+import type { SegmentParseResponse } from './types';
 
 export interface Segment {
   id: number;
@@ -84,9 +85,13 @@ async function fetchData(accessToken: string, coords: number[]) {
       }
 
       const htmlContent = await response.text();
-      const parsingData = parseHTML(htmlContent);
+      const { segment: parsedSegment, athlete } = parseHTML(htmlContent);
 
-      return { ...parsingData, legacySegment: segment };
+      return {
+        ...parsedSegment,
+        athlete,
+        legacySegment: segment
+      };
     } catch (error) {
       console.error(`Error fetching or parsing segment ${segment.id}:`, error);
       return null;
@@ -95,21 +100,24 @@ async function fetchData(accessToken: string, coords: number[]) {
 
   const segmentsParseResponses = await Promise.all(segmentsParseDetailsPromises);
 
-  const filteredSegmentsParseResponses = segmentsParseResponses.filter((seg: any) => seg && seg.legacySegment?.id);
+  const filteredSegmentsParseResponses = segmentsParseResponses.filter((seg): seg is SegmentParseResponse => seg !== null && seg.legacySegment?.id !== undefined)
+    .filter((seg) => !!seg.legacySegment.climb_category); // TODO: remove this filter when we will calculate VAM for all segments
 
-  const segmentsVAMForTable = filteredSegmentsParseResponses.map((seg: any) => {
+  const segmentsVAMForTable = filteredSegmentsParseResponses.map((seg) => {
+    // console.log('🚀 ~ seg:', seg);
+
     return {
       id: seg.legacySegment.id,
       name: seg.legacySegment.name,
-      category: seg.legacySegment.climb_category_desc || `${seg.legacySegment.climb_category}`,
+      category: seg.legacySegment.climb_category,
       distance: seg.legacySegment.distance,
       averageGrade: seg.legacySegment.avg_grade,
-      maximum_grade: seg.maximum_grade || 0,
-      elevation_high: seg.elevation_high || '0',
-      elevation_low: seg.elevation_low || '0',
-      elevationGain: seg.elevationGain || `${seg.legacySegment.elev_difference}` || '0',
-      time: seg.athlete_segment_stats?.pr_elapsed_time || '0',
-      kVAM: seg.vam || 0,
+      maximum_grade: 0,
+      elevation_high: seg.segment?.highestElev || '0',
+      elevation_low: seg.segment?.lowestElev || '0',
+      elevationGain: seg.segment?.elevationGain || `${seg.legacySegment.elev_difference}` || '0', // elevation gain
+      time: seg.athlete?.time || '0',
+      kVAM: seg.athlete?.vam || 0,
       qVAM: 0,
     };
   });
