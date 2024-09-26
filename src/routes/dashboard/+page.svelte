@@ -97,8 +97,10 @@
           </thead>
           <tbody>
             {#each Object.entries(climbingEfforts) as [category, vam]}
+              {@const [distance, climbCat1, climbCat2] = category.split("_")}
+              {@const formattedCategory = `${distance}(${climbCat1};${climbCat2})`}
               <tr>
-                <td>{category}</td>
+                <td>{formattedCategory}</td>
                 <td>{vam}</td>
               </tr>
             {/each}
