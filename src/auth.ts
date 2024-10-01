@@ -17,6 +17,7 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
       }
     })
   ],
+  secret: AUTH_STRAVA_SECRET,
   trustHost: true,
   callbacks: {
     async jwt({ token, account, profile }) {
