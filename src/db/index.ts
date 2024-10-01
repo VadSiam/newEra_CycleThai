@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import * as dotenv from 'dotenv';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 // Complete User interface
@@ -26,8 +27,19 @@ export const users = sqliteTable('users', {
 });
 
 // Create a database connection
-const sqlite = new Database(process.env.DB_URL?.replace('file:', '') || 'sqlite.db');
-export const db = drizzle(sqlite);
+let db: ReturnType<typeof drizzle>;
+
+try {
+  const sqlite = new Database(process.env.DB_URL?.replace('file:', '') || ':memory:');
+  db = drizzle(sqlite);
+} catch (error) {
+  console.error('Failed to initialize database:', error);
+  // Fallback to in-memory database
+  const sqlite = new Database(':memory:');
+  db = drizzle(sqlite);
+}
+
+export { db };
 
 // Define the climbing efforts table
 export const climbingEfforts = sqliteTable('climbing_efforts', {
@@ -37,6 +49,16 @@ export const climbingEfforts = sqliteTable('climbing_efforts', {
   effortData: text('effort_data').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Run migrations
+export async function initializeDatabase() {
+  try {
+    await migrate(db, { migrationsFolder: './drizzle' });
+    console.log('Database initialized and migrations completed');
+  } catch (error) {
+    console.error('Failed to run migrations:', error);
+  }
+}
 
 export async function updateUserLastActivityDate(userId: string, lastActivityDate: Date): Promise<void> {
   await db.update(users)

@@ -1,3 +1,4 @@
+import { AUTH_STRAVA_ID, AUTH_STRAVA_SECRET } from '$env/static/private';
 import { SvelteKitAuth } from "@auth/sveltekit";
 import Strava from "@auth/sveltekit/providers/strava";
 import { eq } from 'drizzle-orm';
@@ -6,6 +7,8 @@ import { db, users } from './db';
 export const { handle, signIn, signOut } = SvelteKitAuth({
   providers: [
     Strava({
+      clientId: AUTH_STRAVA_ID,
+      clientSecret: AUTH_STRAVA_SECRET,
       authorization: {
         params: {
           scope: 'read,read_all,profile:read_all,activity:read,activity:read_all',
