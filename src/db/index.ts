@@ -46,15 +46,6 @@ export const climbingEfforts = pgTable('climbing_efforts', {
 // Export Supabase client for other uses
 export { supabase };
 
-// // Run migrations
-// export async function initializeDatabase() {
-//   try {
-//     await migrate(db, { migrationsFolder: './drizzle' });
-//     console.log('Database initialized and migrations completed');
-//   } catch (error) {
-//     console.error('Failed to run migrations:', error);
-//   }
-// }
 
 export async function updateUserLastActivityDate(userId: string, lastActivityDate: Date): Promise<void> {
   const { error } = await supabase
