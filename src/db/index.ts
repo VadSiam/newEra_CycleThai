@@ -1,9 +1,10 @@
-import Database from 'better-sqlite3';
+import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
-import { sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+
+dotenv.config();
 
 // Complete User interface
 export interface User {
@@ -14,59 +15,36 @@ export interface User {
   lastActivityRecordDate?: Date | null;
 }
 
-dotenv.config();
-
 // Define the users table
-export const users = sqliteTable('users', {
+export const users = pgTable('users', {
   id: text('id').primaryKey(),
   name: text('name'),
   email: text('email'),
   stravaId: text('strava_id').unique(),
-  lastActivityRecordDate: integer('last_activity_record_date', { mode: 'timestamp' }),
-  // Add more fields as needed
+  lastActivityRecordDate: timestamp('last_activity_record_date'),
 });
 
-// Create a database connection
-let db: ReturnType<typeof drizzle>;
+// Create a Supabase client
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!);
 
-try {
-  const sqlite = new Database(process.env.DB_URL?.replace('file:', '') || ':memory:');
-  db = drizzle(sqlite);
-} catch (error) {
-  console.error('Failed to initialize database:', error);
-  // Fallback to in-memory database
-  const sqlite = new Database(':memory:');
-  db = drizzle(sqlite);
-}
+// Create a Postgres connection
+const connectionString = process.env.DATABASE_URL!;
+const client = postgres(connectionString);
 
-export { db };
+// Create a Drizzle ORM instance
+export const db = drizzle(client);
 
 // Define the climbing efforts table
-export const climbingEfforts = sqliteTable('climbing_efforts', {
-  id: integer('id').primaryKey(),
+export const climbingEfforts = pgTable('climbing_efforts', {
+  id: text('id').primaryKey(),
   userId: text('user_id').notNull(),
   stravaId: text('strava_id').notNull(),
   effortData: text('effort_data').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-// Run migrations
-export async function initializeDatabase() {
-  try {
-    await migrate(db, { migrationsFolder: './drizzle' });
-    console.log('Database initialized and migrations completed');
-  } catch (error) {
-    console.error('Failed to run migrations:', error);
-  }
-}
+// Export Supabase client for other uses
+export { supabase };
 
-export async function updateUserLastActivityDate(userId: string, lastActivityDate: Date): Promise<void> {
-  await db.update(users)
-    .set({ lastActivityRecordDate: lastActivityDate })
-    .where(sql`${users.id} = ${userId}`);
-}
-
-export async function getUserById(userId: string): Promise<User | undefined> {
-  const result = await db.select().from(users).where(sql`${users.id} = ${userId}`).limit(1);
-  return result[0];
-}
+// Commented out functions can be uncommented and adjusted as needed
+// ...

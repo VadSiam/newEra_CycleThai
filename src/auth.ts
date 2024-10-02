@@ -28,9 +28,9 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
         // Check if user exists, if not create a new one
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
-        const existingUser = await db.select().from(users).where(eq(users.stravaId, profile.id)).get();
+        const existingUser = await db.select().from(users).where(eq(users.stravaId, profile.id));
         console.log('######🚀 ~ existingUser:', existingUser)
-        if (!existingUser) {
+        if (existingUser.length === 0) {
           await db.insert(users).values({
             id: profile.id ?? '',
             name: profile.name ?? '',
@@ -48,19 +48,19 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
       if (token.stravaId) {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
-        const user = await db.select().from(users).where(eq(users.stravaId, token.stravaId)).get();
-        if (user) {
+        const user = await db.select().from(users).where(eq(users.stravaId, token.stravaId));
+        if (user.length > 0) {
           session.user = {
             ...session.user,
-            id: user.id,
-            stravaId: user.stravaId,
+            id: user[0].id,
+            stravaId: user[0].stravaId,
             // Add any other fields you want to include in the session
           };
-          console.log(`Session created for user with Strava ID: ${user.stravaId}`);
+          console.log(`Session created for user with Strava ID: ${user[0].stravaId}`);
         }
       }
       session.accessToken = token.accessToken as string;
       return session;
     },
-  },
+  }
 });
