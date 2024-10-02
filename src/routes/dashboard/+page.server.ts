@@ -11,9 +11,9 @@ type UserHere = {
   lastActivityRecordDate?: Date | null; // Add this line
 };
 
-export const load: PageServerLoad = async ({ locals, cookies }) => {
+export const load: PageServerLoad = async ({ locals }) => {
   const session = await locals.auth();
-  if (!session || !cookies.get('authjs.session-token')) {
+  if (!session) {
     throw redirect(307, '/');
   }
 
