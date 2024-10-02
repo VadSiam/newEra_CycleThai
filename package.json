@@ -11,8 +11,7 @@
 		"lint": "eslint .",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
-		"db:push": "drizzle-kit push",
-		"start": "NODE_ENV=production node build"
+		"db:push": "drizzle-kit push"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^3.0.0",

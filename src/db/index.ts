@@ -46,5 +46,49 @@ export const climbingEfforts = pgTable('climbing_efforts', {
 // Export Supabase client for other uses
 export { supabase };
 
-// Commented out functions can be uncommented and adjusted as needed
-// ...
+// // Run migrations
+// export async function initializeDatabase() {
+//   try {
+//     await migrate(db, { migrationsFolder: './drizzle' });
+//     console.log('Database initialized and migrations completed');
+//   } catch (error) {
+//     console.error('Failed to run migrations:', error);
+//   }
+// }
+
+export async function updateUserLastActivityDate(userId: string, lastActivityDate: Date): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({ last_activity_record_date: lastActivityDate.toISOString() })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Error updating user last activity date:', error);
+    throw error;
+  }
+}
+
+export async function getUserById(userId: string): Promise<User | undefined> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user by ID:', error);
+    return undefined;
+  }
+
+  if (data) {
+    return {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      stravaId: data.strava_id,
+      lastActivityRecordDate: data.last_activity_record_date ? new Date(data.last_activity_record_date) : null,
+    };
+  }
+
+  return undefined;
+}
