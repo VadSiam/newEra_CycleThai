@@ -39,7 +39,10 @@
   <div class="dashboard-container">
     <header>
       <h1>Dashboard</h1>
-      <button on:click={handleSignOut} class="logout-button">Log out</button>
+      <div>
+        <a href="/support" class="support-button">Support</a>
+        <button on:click={handleSignOut} class="logout-button">Log out</button>
+      </div>
     </header>
     <main>
       <h3>Welcome, {$page.data.session.user?.name}!</h3>
@@ -139,7 +142,9 @@
   }
 
   .logout-button {
-    padding: 8px 16px;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    font-size: 16px;
     background-color: #f44336;
     color: white;
     border: none;

@@ -12,6 +12,7 @@
     >
       <span slot="submitButton">Sign in with Strava</span>
     </SignIn>
+    <a href="/support" class="support-button">Support</a>
   </nav>
 </header>
 
@@ -49,5 +50,12 @@
 
   h1 {
     margin-bottom: 20px;
+  }
+
+  nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 0;
   }
 </style>
