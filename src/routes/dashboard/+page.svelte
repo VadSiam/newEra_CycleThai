@@ -39,103 +39,75 @@
   <div class="dashboard-container">
     <header>
       <h1>Dashboard</h1>
-      <div>
-        <a href="/support" class="support-button">Support</a>
-        <button on:click={handleSignOut} class="logout-button">Log out</button>
+      <div class="header-buttons">
+        <a href="/support" class="button support-button">Support</a>
+        <button on:click={handleSignOut} class="button logout-button"
+          >Log out</button
+        >
       </div>
     </header>
-    <main>
-      <h3>Welcome, {$page.data.session.user?.name}!</h3>
-      <p>You're successfully signed in with Strava.</p>
-      <br />
-      <br />
-      <br />
+    <main class="dashboard-grid">
+      <div class="welcome-section">
+        <h3>Welcome, {$page.data.session.user?.name}!</h3>
+        <p>You're successfully signed in with Strava.</p>
+      </div>
 
-      <h3>Select area to find segments and push the button then</h3>
-      <Map />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <SegmentsTable />
-      <br />
-      <br />
-      <br />
-      <br />
-      <form
-        method="POST"
-        action="?/fetchActivities"
-        use:enhance={() => {
-          loading = true;
-          return async ({ result }) => {
-            loading = false;
-            if (result.type === "success" && result.data?.climbingEfforts) {
-              // @ts-ignore
-              activities = result.data?.activities;
-              climbingEfforts = result.data?.climbingEfforts;
-            }
-          };
-        }}
-      >
-        <button type="submit" class="fetch-button" disabled={loading}>
-          {loading ? "Fetching..." : "Fetch Activities and Segments"}
-        </button>
-      </form>
+      <div class="map-section">
+        <h3>Select area to find segments and push the button then</h3>
+        <Map />
+      </div>
 
-      <!-- <h2>Your Last 3 Activities</h2>
-      {#if activities.length > 0}
-        <ul>
-          {#each activities as activity}
-            <li>
-              <h3>{activity.name}</h3>
-              <p>Type: {activity.type}</p>
-              <p>Distance: {formatDistance(activity.distance)}</p>
-              <p>Duration: {formatTime(activity.elapsed_time)}</p>
-              <p>Elevation Gain: {activity.elevation_gain.toFixed(2)} m</p>
-              <p>Date: {new Date(activity.start_date).toLocaleDateString()}</p>
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <p>
-          No activities fetched yet. Click the button above to fetch your
-          activities and segments.
-        </p>
-      {/if} -->
+      <div class="segments-section">
+        <SegmentsTable />
+      </div>
 
-      <h2>Climbing Efforts</h2>
-      {#if Object.keys(climbingEfforts).length > 0}
-        <table>
-          <thead>
-            <tr>
-              <th>Distance Category</th>
-              <th>Best VAM</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each Object.entries(climbingEfforts) as [category, vam]}
-              {@const [distance, climbCat1, climbCat2] = category.split("_")}
-              {@const formattedCategory = `${distance}(${climbCat1};${climbCat2})`}
+      <div class="fetch-section">
+        <form
+          method="POST"
+          action="?/fetchActivities"
+          use:enhance={() => {
+            loading = true;
+            return async ({ result }) => {
+              loading = false;
+              if (result.type === "success" && result.data?.climbingEfforts) {
+                // @ts-ignore
+                activities = result.data?.activities;
+                climbingEfforts = result.data?.climbingEfforts;
+              }
+            };
+          }}
+        >
+          <button type="submit" class="fetch-button" disabled={loading}>
+            {loading ? "Fetching..." : "Fetch Your Activities"}
+          </button>
+        </form>
+      </div>
+
+      <div class="climbing-efforts-section">
+        <h2>Climbing Efforts</h2>
+        {#if Object.keys(climbingEfforts).length > 0}
+          <table>
+            <thead>
               <tr>
-                <td>{formattedCategory}</td>
-                <td>{vam}</td>
+                <th>Distance Category</th>
+                <th>Best VAM</th>
               </tr>
-            {/each}
-          </tbody>
-        </table>
-      {:else}
-        <p>No climbing efforts data available.</p>
-      {/if}
+            </thead>
+            <tbody>
+              {#each Object.entries(climbingEfforts) as [category, vam]}
+                {@const [distance, climbCat1, climbCat2] = category.split("_")}
+                {@const formattedCategory = `${distance}(${climbCat1};${climbCat2})`}
+                <tr>
+                  <td>{formattedCategory}</td>
+                  <td>{vam}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        {:else}
+          <p>No climbing efforts data available.</p>
+        {/if}
+      </div>
     </main>
   </div>
 {:else}
@@ -145,6 +117,14 @@
 <style>
   .dashboard-container {
     padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-container {
+      padding: 10px;
+    }
   }
 
   header {
@@ -154,19 +134,48 @@
     margin-bottom: 20px;
   }
 
-  .logout-button {
-    text-transform: uppercase;
+  .header-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .button {
+    display: inline-block;
     padding: 10px 20px;
     font-size: 16px;
-    background-color: #f44336;
-    color: white;
+    text-align: center;
+    text-decoration: none;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  .support-button {
+    background-color: #4caf50;
+    color: white;
+    text-transform: uppercase;
+  }
+
+  .support-button:hover {
+    background-color: #45a049;
+  }
+
+  .logout-button {
+    background-color: #f44336;
+    color: white;
+    text-transform: uppercase;
   }
 
   .logout-button:hover {
     background-color: #d32f2f;
+  }
+
+  @media (min-width: 768px) {
+    .header-buttons {
+      flex-direction: row;
+    }
   }
 
   ul {
@@ -224,5 +233,40 @@
 
   th {
     background-color: #f2f2f2;
+  }
+
+  .section {
+    margin-bottom: 2rem;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 768px) {
+    .dashboard-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .map-section,
+    .climbing-efforts-section,
+    .fetch-section,
+    .segments-section {
+      grid-column: span 2;
+    }
+  }
+
+  .welcome-section,
+  .map-section,
+  .segments-section,
+  .fetch-section,
+  .climbing-efforts-section {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    width: 100%;
   }
 </style>

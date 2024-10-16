@@ -139,20 +139,40 @@
   />
 </svelte:head>
 
-<main>
-  <div class="map-container">
-    <div bind:this={mapContainer}></div>
-  </div>
-</main>
+<div class="map-container">
+  <div class="map" bind:this={mapContainer}></div>
+</div>
 
 <style>
   /* @import "leaflet/dist/leaflet.css"; */
-  .map-container {
+  /* .map-container {
     width: 100%;
     height: 66.67vh;
   }
 
   div {
     height: 700px;
+  } */
+  .map-container {
+    width: 100%;
+    height: 50vh;
+    min-height: 400px;
+    max-height: 800px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  @media (max-width: 768px) {
+    .map-container {
+      height: 40vh;
+    }
   }
 </style>

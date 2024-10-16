@@ -118,16 +118,14 @@
       </table>
     </div>
   {/if}
-  {#if $rectangleCoords && showButton}
-    <button
-      on:click={fetchSegments}
-      type="button"
-      class="fetch-button"
-      disabled={loading}
-    >
-      {loading ? "Loading..." : "GET SEGMENTS"}
-    </button>
-  {/if}
+  <button
+    on:click={fetchSegments}
+    type="button"
+    class="fetch-button"
+    disabled={loading || !$rectangleCoords || !showButton}
+  >
+    {loading ? "Loading..." : "GET SEGMENTS"}
+  </button>
 
   {#if error}
     <p class="text-red-500">{error}</p>
@@ -147,5 +145,31 @@
     border-radius: 4px;
     cursor: pointer;
     margin-bottom: 20px;
+    transition: background-color 0.3s ease;
+  }
+
+  .fetch-button:hover:not(:disabled) {
+    background-color: #3a3d8c;
+  }
+
+  .fetch-button:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  @media (max-width: 768px) {
+    .relative {
+      overflow-x: auto;
+    }
+
+    table {
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      padding: 4px;
+    }
   }
 </style>
