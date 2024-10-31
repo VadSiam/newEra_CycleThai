@@ -34,7 +34,7 @@ export const actions = {
 
     try {
       const user: UserHere = session.user; // Type assertion
-      const activities = await getLastActivities(session.accessToken, user.id, user.lastActivityRecordDate);
+      const activities = await getLastActivities(session.accessToken, user.id);
       console.log('@@@@@@@@@@@🚀 ~ activities:', activities);
 
       // Fetch segments for each activity

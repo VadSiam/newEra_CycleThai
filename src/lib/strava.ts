@@ -1,5 +1,5 @@
 import stravaApi from 'strava-v3';
-import { updateUserLastActivityDate } from '../db';
+import { getActivitiesFromDB, saveActivitiesToDB, updateUserLastActivityDate } from '../db';
 
 function getOneWeekAgoTimestamp(): number {
   const oneWeekAgo = new Date();
@@ -7,26 +7,76 @@ function getOneWeekAgoTimestamp(): number {
   return Math.floor(oneWeekAgo.getTime() / 1000);
 }
 
-export async function getLastActivities(accessToken: string, userId: string, lastActivityRecordDate?: Date | null): Promise<any[]> {
+export async function getLastActivities(accessToken: string, userId: string): Promise<any[]> {
   const strava = new (stravaApi.client as any)(accessToken);
 
   try {
-    const after = lastActivityRecordDate
-      ? Math.floor(lastActivityRecordDate.getTime() / 1000)
-      : getOneWeekAgoTimestamp();
+    // 1. Get activities from DB
+    console.log('📊 Fetching activities from DB for user:', userId);
+    const dbActivities = await getActivitiesFromDB(userId);
+    console.log('📊 Found activities in DB:', dbActivities.length);
 
-    const payload = await strava.athlete.listActivities({
-      after,
-      per_page: 30,
-    });
+    // 2. Determine if we need to fetch from Strava
+    let stravaActivities: any[] = [];
+    if (dbActivities.length > 0) {
+      // Get latest activity date from DB
+      const latestDBActivity = dbActivities[0]; // Assuming sorted desc
+      const after = Math.floor(new Date(latestDBActivity.start_date).getTime() / 1000);
+      console.log('🔍 Latest activity in DB date:', new Date(latestDBActivity.start_date));
 
-    // Update lastActivityRecordDate in the database
-    if (payload.length > 0) {
-      const latestActivityDate = new Date(payload[0].start_date);
+      // Fetch only new activities from Strava
+      console.log('🚴 Fetching new activities from Strava after:', new Date(after * 1000));
+      const newActivities = await strava.athlete.listActivities({
+        after,
+        per_page: 30,
+      });
+      console.log('🚴 Found new activities from Strava:', newActivities.length);
+
+      if (newActivities.length > 0) {
+        console.log('💾 Saving new activities to DB...');
+        // Save new activities to DB
+        await saveActivitiesToDB(userId, newActivities);
+        stravaActivities = newActivities;
+        console.log('💾 Saved new activities to DB');
+      }
+    } else {
+      // No activities in DB, fetch last 7 days
+      console.log('📊 No activities in DB, fetching last 7 days from Strava');
+      const after = getOneWeekAgoTimestamp();
+      stravaActivities = await strava.athlete.listActivities({
+        after,
+        per_page: 30,
+      });
+      console.log('🚴 Found activities from Strava:', stravaActivities.length);
+
+      // Save to DB
+      if (stravaActivities.length > 0) {
+        console.log('💾 Saving initial activities to DB...');
+        await saveActivitiesToDB(userId, stravaActivities);
+        console.log('💾 Saved initial activities to DB');
+      }
+    }
+
+    // Update last activity date if we got new activities
+    if (stravaActivities.length > 0) {
+      const latestActivityDate = new Date(stravaActivities[0].start_date);
+      console.log('📅 Updating last activity date to:', latestActivityDate);
       await updateUserLastActivityDate(userId, latestActivityDate);
     }
 
-    return payload.map((activity: any) => ({
+    // 3. Combine and format all activities
+    const allActivities = [...stravaActivities, ...dbActivities];
+    console.log('📊 Total activities before deduplication:', allActivities.length);
+
+    // Sort by date desc and remove duplicates
+    const uniqueActivities = Array.from(
+      new Map(allActivities.map(item => [item.id, item])).values()
+    ).sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
+
+    console.log('📊 Total unique activities after deduplication:', uniqueActivities.length);
+
+    // Keep the same return format
+    return uniqueActivities.map((activity: any) => ({
       id: activity.id,
       name: activity.name,
       distance: activity.distance,
@@ -36,7 +86,7 @@ export async function getLastActivities(accessToken: string, userId: string, las
       type: activity.type,
     }));
   } catch (error) {
-    console.error('Error fetching Strava activities:', error);
+    console.error('❌ Error fetching activities:', error);
     throw error;
   }
 }
@@ -135,8 +185,12 @@ export function categorizeClimbingEfforts(efforts: StravaEffort[]): CyclingPaces
   const categorizedEfforts: CyclingPaces = { ...defaultCategories };
 
   efforts.forEach(effort => {
+    if (!effort.segment) return;
     const elevationGain = (effort.segment?.elevation_high ?? 0) - (effort.segment?.elevation_low ?? 0);
-    const averageGrade = effort.segment.average_grade || (elevationGain / effort.distance * 100);
+    const averageGrade = effort.segment.average_grade;
+
+    // Filter for climbing segments
+    if (elevationGain <= 0 || averageGrade <= 0) return;
 
     const distanceCategory = getDistanceCategory(effort.distance);
     if (!distanceCategory) return; // Skip if the distance doesn't fit our categories
@@ -145,7 +199,7 @@ export function categorizeClimbingEfforts(efforts: StravaEffort[]): CyclingPaces
     const category: distanceCategoryFull = `${distanceCategory}_${climbCategory}`;
 
     const timeInMinutes = (effort?.elapsed_time ?? 0) / 60;
-    const vam = timeInMinutes ? ((elevationGain * 60) / timeInMinutes) : 0;
+    const vam = timeInMinutes ? calculateVAMbyGain({ elevationGain, timeInMinutes }) : 0;
 
     const currentBestVAM = categorizedEfforts[category] || 0;
     if (vam > currentBestVAM && vam <= 3000) { // Filter unrealistic VAM values
@@ -163,4 +217,23 @@ export function calculateVAM({ elevationHigh, elevationLow, timeInMinutes }: { e
 
   const elevationGain = elevationHigh - elevationLow;
   return (elevationGain * 60) / timeInMinutes;
+}
+
+export function calculateVAMbyGain({
+  elevationGain,
+  timeInMinutes
+}: {
+  elevationGain: number;
+  timeInMinutes: number
+}): number {
+  if (timeInMinutes <= 0) {
+    throw new Error("Time must be greater than zero");
+  }
+
+  if (elevationGain < 0) {
+    throw new Error("Elevation gain must be non-negative");
+  }
+
+  const vam = (elevationGain * 60) / timeInMinutes;
+  return Number(vam.toFixed(2)); // Rounds to 2 decimal places for consistency
 }

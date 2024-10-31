@@ -1,10 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
+import { desc, eq } from 'drizzle-orm';
 import { pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
 dotenv.config();
+
+interface Activity {
+  id: string;
+  name: string;
+  distance: number;
+  elapsed_time: number;
+  total_elevation_gain: number;
+  start_date: Date;
+  type: string;
+}
 
 // Complete User interface
 export interface User {
@@ -59,6 +70,49 @@ export async function updateUserLastActivityDate(userId: string, lastActivityDat
   }
 }
 
+export async function getActivitiesFromDB(userId: string): Promise<Activity[]> {
+  // Using Drizzle ORM
+  const dbActivities = await db
+    .select()
+    .from(activities)
+    .where(eq(activities.userId, userId))
+    .orderBy(desc(activities.start_date));
+
+  return dbActivities.map((activity) => ({
+    id: activity.id,
+    name: activity.name,
+    distance: +(activity.distance),
+    elapsed_time: +(activity.elapsed_time),
+    total_elevation_gain: +(activity.total_elevation_gain),
+    start_date: activity.start_date as Date,
+    type: activity.type
+  }));
+}
+
+export async function saveActivitiesToDB(userId: string, activities: Activity[]): Promise<void> {
+  const activitiesToInsert = activities.map(activity => ({
+    id: activity.id,
+    user_id: userId,
+    name: activity.name,
+    distance: activity.distance,
+    elapsed_time: activity.elapsed_time,
+    total_elevation_gain: activity.total_elevation_gain,
+    start_date: activity.start_date,
+    type: activity.type
+  }));
+
+  const { error } = await supabase
+    .from('activities')
+    .upsert(activitiesToInsert, {
+      onConflict: 'id'  // This ensures we don't duplicate activities
+    });
+
+  if (error) {
+    console.error('Error saving activities to DB:', error);
+    throw error;
+  }
+}
+
 export async function getUserById(userId: string): Promise<User | undefined> {
   const { data, error } = await supabase
     .from('users')
@@ -83,3 +137,16 @@ export async function getUserById(userId: string): Promise<User | undefined> {
 
   return undefined;
 }
+
+// Also need to add the activities table definition to match other tables:
+export const activities = pgTable('activities', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  name: text('name').notNull(),
+  distance: text('distance').notNull(),
+  elapsed_time: text('elapsed_time').notNull(),
+  total_elevation_gain: text('total_elevation_gain').notNull(),
+  start_date: timestamp('start_date').notNull(),
+  type: text('type').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
