@@ -36,7 +36,7 @@ export type Athlete = {
   time: string;
 };
 
-export interface SegmentParseResponse {
+export interface SegmentParseResponse extends SegmentDetails {
   legacySegment: SegmentInfo;
   segment: SegmentDetails | null;
   athlete: Athlete | null;

@@ -1,6 +1,7 @@
 import { parseHTML } from '$lib/helpers.parse'; // Make sure to create this helper function
-import { error, json } from '@sveltejs/kit';
+import { error, json, redirect } from '@sveltejs/kit';
 import stravaApi from 'strava-v3';
+import { signOut } from '../../../auth'; // Import from our local auth file
 import type { RequestHandler } from './$types';
 import type { SegmentParseResponse } from './types';
 
@@ -19,24 +20,53 @@ export interface Segment {
   qVAM: number;
 }
 
-export const POST: RequestHandler = async ({ request, locals }) => {
-  const session = await locals.auth();
-  if (!session?.accessToken) {
-    throw error(401, 'Unauthorized');
-  }
+export const POST: RequestHandler = async ({ request, locals, cookies }) => {
+  try {
+    const session = await locals.auth();
+    if (!session?.accessToken) {
+      throw error(401, 'Unauthorized');
+    }
 
-  const { coords } = await request.json();
-  if (!coords || coords.length !== 4) {
-    throw error(400, 'Invalid coordinates');
-  }
+    const { coords } = await request.json();
+    if (!coords || coords.length !== 4) {
+      throw error(400, 'Invalid coordinates');
+    }
 
-  const [swLat, swLon, neLat, neLon] = coords;
-  const segmentsVAMForTable = await fetchData(session.accessToken, [swLat, swLon, neLat, neLon]);
-  return json(segmentsVAMForTable);
+    const [swLat, swLon, neLat, neLon] = coords;
+    const segmentsVAMForTable = await fetchData(session.accessToken, [swLat, swLon, neLat, neLon]);
+    return json(segmentsVAMForTable);
+  } catch (err: any) {
+    console.error('Error in POST handler:', err);
+
+    if (err.message?.includes('Authorization Error') ||
+      err.statusCode === 401 ||
+      (err.message?.includes('access_token') && err.message?.includes('invalid'))) {
+
+      cookies.set('authjs.session-token', '', {
+        path: '/',
+        expires: new Date(0)
+      });
+
+      const redirectTo = '/';
+      await signOut({
+        request,
+        locals,
+        cookies,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        callbackUrl: redirectTo
+      });
+
+      throw redirect(303, redirectTo);
+    }
+
+    throw error(500, 'Failed to fetch segments');
+  }
 };
 
 async function fetchData(accessToken: string, coords: number[]) {
   console.log('🚀 ~ coords:', coords)
+  let isError = false;
   const [swLat, swLon, neLat, neLon] = coords;
   const areaToExplore = calculateArea([swLat, swLon, neLat, neLon]);
 
@@ -67,9 +97,14 @@ async function fetchData(accessToken: string, coords: number[]) {
     })
     .catch(error => {
       console.error("There was an error fetching the segments:", error);
-      return [];
+      isError = true;
+      throw error;
+    })
+    .finally(() => {
+      if (isError) {
+        return [];
+      }
     });
-
 
   const segmentsParseDetailsPromises = segments.map(async (segment: any) => {
     try {
@@ -102,14 +137,14 @@ async function fetchData(accessToken: string, coords: number[]) {
 
   const filteredSegmentsParseResponses = segmentsParseResponses.filter((seg): seg is SegmentParseResponse => seg !== null && seg.legacySegment?.id !== undefined)
     .filter((seg) => !!seg.legacySegment.climb_category); // TODO: remove this filter when we will calculate VAM for all segments
+  console.log('🚀 ~ segmentsParseResponses.filter((seg): seg is SegmentParseResponse => seg !== null && seg.legacySegment?.id !== undefined):', segmentsParseResponses.length, segmentsParseResponses)
 
   const segmentsVAMForTable = filteredSegmentsParseResponses.map((seg) => {
-    // console.log('🚀 ~ seg:', seg);
 
     return {
       id: seg.legacySegment.id,
       name: seg.legacySegment.name,
-      category: seg.legacySegment.climb_category,
+      category: seg.climbCategory || seg.legacySegment.climb_category,
       distance: seg.legacySegment.distance,
       averageGrade: seg.legacySegment.avg_grade,
       maximum_grade: 0,
@@ -134,8 +169,8 @@ async function fetchSegmentsForAreas(areas: string[], accessToken: string): Prom
         strava.segments.explore({
           bounds: area,
           activity_type: 'riding',
-          min_cat: 0,
-          max_cat: 5
+          min_cat: 1,
+          max_cat: 5,
         }, (err: any, payload: any) => {
           if (err) reject(err);
           else resolve(payload);
@@ -143,13 +178,19 @@ async function fetchSegmentsForAreas(areas: string[], accessToken: string): Prom
       });
 
       return response;
-    } catch (error) {
-      console.error(`Error fetching segments for area ${area}:`, error);
+    } catch (err: any) {
+      if (err.message?.includes('Authorization Error') ||
+        err.statusCode === 401 ||
+        (err.message?.includes('access_token') && err.message?.includes('invalid'))) {
+        throw err;
+      }
+      console.error(`Error fetching segments for area ${area}:`, err);
       return null;
     }
   });
 
   const results = await Promise.all(fetchPromises);
+  console.log('🚀 ~ results:@@@@@', results.length, results)
   return results.filter(result => result !== null);
 }
 

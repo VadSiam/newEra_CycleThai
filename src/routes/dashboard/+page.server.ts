@@ -1,5 +1,6 @@
 import { categorizeClimbingEfforts, getLastActivities, getSegmentsForActivity } from '$lib/strava';
 import { error, redirect } from '@sveltejs/kit';
+import { signOut } from '../../auth';
 import { saveClimbingEfforts } from '../../db/actions';
 import type { PageServerLoad } from './$types';
 
@@ -78,8 +79,10 @@ export const actions = {
           (err as any).statusCode === 401 ||
           err.message.includes('access_token') && err.message.includes('invalid')) {
           cookies.set('authjs.session-token', '', { path: '/', maxAge: 0 }); // Clear the session cookie
+          await signOut(redirect(307, '/'));
           throw redirect(307, '/'); // Redirect to the home page
         } else if (err.message.includes('No access token found in session') || (err as any).statusCode === 500 || (err as any).statusCode === '500') {
+          await signOut(redirect(307, '/'));
           throw redirect(307, '/'); // Redirect to the home page
         }
       }
