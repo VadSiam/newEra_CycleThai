@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { Segment } from "../routes/api/fetchSegments/+server";
-  import { rectangleCoords } from "./stores/mapStore";
+  import { rectangleCoords, selectedClimbCategories } from "./stores/mapStore";
 
   let segments: Segment[] = [];
   let loading = false;
@@ -50,7 +50,10 @@
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ coords }),
+        body: JSON.stringify({
+          coords,
+          categories: $selectedClimbCategories,
+        }),
       });
 
       if (!response.ok) {

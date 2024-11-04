@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
+  import ClimbCategoryFilter from "$lib/ClimbCategoryFilter.svelte";
   import Map from "$lib/Map.svelte";
   import SegmentsTable from "$lib/SegmentsTable.svelte";
   import { signOut } from "@auth/sveltekit/client";
@@ -54,6 +55,8 @@
 
       <div class="map-section">
         <h3>Select area to find segments and push the button then</h3>
+        <ClimbCategoryFilter />
+        <br />
         <Map />
       </div>
 

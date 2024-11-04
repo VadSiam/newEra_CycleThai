@@ -27,13 +27,17 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
       throw error(401, 'Unauthorized');
     }
 
-    const { coords } = await request.json();
+    const { coords, categories } = await request.json();
     if (!coords || coords.length !== 4) {
       throw error(400, 'Invalid coordinates');
     }
 
     const [swLat, swLon, neLat, neLon] = coords;
-    const segmentsVAMForTable = await fetchData(session.accessToken, [swLat, swLon, neLat, neLon]);
+    const segmentsVAMForTable = await fetchData(
+      session.accessToken,
+      [swLat, swLon, neLat, neLon],
+      categories
+    );
     return json(segmentsVAMForTable);
   } catch (err: any) {
     console.error('Error in POST handler:', err);
@@ -64,7 +68,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
   }
 };
 
-async function fetchData(accessToken: string, coords: number[]) {
+async function fetchData(accessToken: string, coords: number[], categories: number[]) {
   console.log('🚀 ~ coords:', coords)
   let isError = false;
   const [swLat, swLon, neLat, neLon] = coords;
@@ -80,10 +84,11 @@ async function fetchData(accessToken: string, coords: number[]) {
   const splitAreas = (areaToExplore <= 17 ? coords : splitArea(swLat, swLon, neLat, neLon, targetSize)).map(String);
   const mixedAreas = [...splitAreas, coords.map(String).join(', ')];
 
-  const segments = await fetchSegmentsForAreas(mixedAreas, accessToken)
+  const segments = await fetchSegmentsForAreas(mixedAreas, accessToken, categories)
     .then(allSegments => {
       const clearedSegments = allSegments.filter(segment => !!segment);
       const flattened = clearedSegments.flatMap(item => item.segments);
+      console.log('🚀 ~ flattened:', flattened)
 
       const uniqueIds = new Set();
       return flattened.filter(segment => {
@@ -136,8 +141,7 @@ async function fetchData(accessToken: string, coords: number[]) {
   const segmentsParseResponses = await Promise.all(segmentsParseDetailsPromises);
 
   const filteredSegmentsParseResponses = segmentsParseResponses.filter((seg): seg is SegmentParseResponse => seg !== null && seg.legacySegment?.id !== undefined)
-    .filter((seg) => !!seg.legacySegment.climb_category); // TODO: remove this filter when we will calculate VAM for all segments
-  console.log('🚀 ~ segmentsParseResponses.filter((seg): seg is SegmentParseResponse => seg !== null && seg.legacySegment?.id !== undefined):', segmentsParseResponses.length, segmentsParseResponses)
+    .filter((seg) => !!seg.legacySegment.climb_category);
 
   const segmentsVAMForTable = filteredSegmentsParseResponses.map((seg) => {
 
@@ -160,38 +164,70 @@ async function fetchData(accessToken: string, coords: number[]) {
   return segmentsVAMForTable;
 };
 
-async function fetchSegmentsForAreas(areas: string[], accessToken: string): Promise<any[]> {
+async function fetchSegmentsForAreas(areas: string[], accessToken: string, categories: number[]): Promise<any[]> {
   const strava = new (stravaApi.client as any)(accessToken);
 
-  const fetchPromises = areas.map(async (area) => {
-    try {
-      const response = await new Promise((resolve, reject) => {
-        strava.segments.explore({
-          bounds: area,
-          activity_type: 'riding',
-          min_cat: 1,
-          max_cat: 5,
-        }, (err: any, payload: any) => {
-          if (err) reject(err);
-          else resolve(payload);
-        });
-      });
-
-      return response;
-    } catch (err: any) {
-      if (err.message?.includes('Authorization Error') ||
-        err.statusCode === 401 ||
-        (err.message?.includes('access_token') && err.message?.includes('invalid'))) {
-        throw err;
-      }
-      console.error(`Error fetching segments for area ${area}:`, err);
-      return null;
+  // Helper function to chunk the category range
+  function getCategoryChunks(min: number, max: number): Array<[number, number]> {
+    if (max - min <= 1) {
+      // If range is 1 or less, return single chunk
+      return [[min, max]];
     }
-  });
+
+    const chunks: Array<[number, number]> = [];
+    let currentMin = min;
+
+    while (currentMin < max) {
+      // Create chunks of max 2 categories
+      const chunkMax = Math.min(currentMin + 1, max);
+      chunks.push([currentMin, chunkMax]);
+      currentMin += 2;
+    }
+
+    return chunks;
+  }
+
+  const minCat = Math.min(...categories);
+  const maxCat = Math.max(...categories);
+  const categoryChunks = getCategoryChunks(minCat, maxCat);
+
+  console.log('Category chunks:', categoryChunks);
+
+  // Create fetch promises for each area and category chunk combination
+  const fetchPromises = areas.flatMap((area) =>
+    categoryChunks.map(async ([chunkMin, chunkMax]) => {
+      try {
+        const response = await new Promise((resolve, reject) => {
+          strava.segments.explore({
+            bounds: area,
+            activity_type: 'riding',
+            min_cat: chunkMin,
+            max_cat: chunkMax,
+          }, (err: any, payload: any) => {
+            if (err) reject(err);
+            else resolve(payload);
+          });
+        });
+
+        return response;
+      } catch (err: any) {
+        if (err.message?.includes('Authorization Error') ||
+          err.statusCode === 401 ||
+          (err.message?.includes('access_token') && err.message?.includes('invalid'))) {
+          throw err;
+        }
+        console.error(`Error fetching segments for area ${area} and categories ${chunkMin}-${chunkMax}:`, err);
+        return null;
+      }
+    })
+  );
 
   const results = await Promise.all(fetchPromises);
-  console.log('🚀 ~ results:@@@@@', results.length, results)
-  return results.filter(result => result !== null);
+  console.log('🚀 ~ Results count:', results.length);
+  // Flatten the nested array and filter out null values
+  return results
+    .filter(result => result !== null)
+    .flat();
 }
 
 function calculateArea(coords: number[]): number {
