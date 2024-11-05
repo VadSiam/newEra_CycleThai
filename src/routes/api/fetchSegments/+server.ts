@@ -71,18 +71,19 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 async function fetchData(accessToken: string, coords: number[], categories: number[]) {
   console.log('🚀 ~ coords:', coords)
   let isError = false;
-  const [swLat, swLon, neLat, neLon] = coords;
-  const areaToExplore = calculateArea([swLat, swLon, neLat, neLon]);
+  // const [swLat, swLon, neLat, neLon] = coords;
+  // const areaToExplore = calculateArea([swLat, swLon, neLat, neLon]);
 
-  let targetSize = 10; // default target size for splitting
-  if (areaToExplore > 30) {
-    targetSize = 10;
-  } else if (areaToExplore > 17) {
-    targetSize = 8.5;
-  }
+  // let targetSize = 10; // default target size for splitting
+  // if (areaToExplore > 30) {
+  //   targetSize = 10;
+  // } else if (areaToExplore > 17) {
+  //   targetSize = 8.5;
+  // }
 
-  const splitAreas = (areaToExplore <= 17 ? coords : splitArea(swLat, swLon, neLat, neLon, targetSize)).map(String);
-  const mixedAreas = [...splitAreas, coords.map(String).join(', ')];
+  // const splitAreas = (areaToExplore <= 17 ? coords : splitArea(swLat, swLon, neLat, neLon, targetSize)).map(String);
+  // const mixedAreas = [...splitAreas, coords.map(String).join(', ')];
+  const mixedAreas = [coords.map(String).join(', ')];
 
   const segments = await fetchSegmentsForAreas(mixedAreas, accessToken, categories)
     .then(allSegments => {
@@ -169,19 +170,19 @@ async function fetchSegmentsForAreas(areas: string[], accessToken: string, categ
 
   // Helper function to chunk the category range
   function getCategoryChunks(min: number, max: number): Array<[number, number]> {
-    if (max - min <= 1) {
-      // If range is 1 or less, return single chunk
-      return [[min, max]];
-    }
-
     const chunks: Array<[number, number]> = [];
     let currentMin = min;
 
-    while (currentMin < max) {
-      // Create chunks of max 2 categories
-      const chunkMax = Math.min(currentMin + 1, max);
-      chunks.push([currentMin, chunkMax]);
-      currentMin += 2;
+    while (currentMin <= max) {
+      if (currentMin === max) {
+        // Handle single remaining number
+        chunks.push([currentMin, currentMin]);
+        break;
+      } else {
+        // Pair numbers in chunks of 2
+        chunks.push([currentMin, currentMin + 1]);
+        currentMin += 2;
+      }
     }
 
     return chunks;
@@ -190,8 +191,6 @@ async function fetchSegmentsForAreas(areas: string[], accessToken: string, categ
   const minCat = Math.min(...categories);
   const maxCat = Math.max(...categories);
   const categoryChunks = getCategoryChunks(minCat, maxCat);
-
-  console.log('Category chunks:', categoryChunks);
 
   // Create fetch promises for each area and category chunk combination
   const fetchPromises = areas.flatMap((area) =>

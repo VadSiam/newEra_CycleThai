@@ -89,7 +89,7 @@
             <th scope="col" class="px-6 py-3">Climb cat.</th>
             <th scope="col" class="px-6 py-3">Elevation</th>
             <th scope="col" class="px-6 py-3">Avg grade</th>
-            <th scope="col" class="px-6 py-3">KOM/QOM</th>
+            <th scope="col" class="px-6 py-3">KOM</th>
           </tr>
         </thead>
         <tbody>
