@@ -12,7 +12,10 @@
     >
       <span slot="submitButton">Sign in with Strava</span>
     </SignIn>
-    <a href="/support" class="support-button">Support</a>
+    <div class="nav-links">
+      <a href="/support" class="support-button">Support</a>
+      <a href="/policy" class="policy-button">Privacy Policy</a>
+    </div>
   </nav>
 </header>
 
@@ -58,5 +61,33 @@
     justify-content: center;
     align-items: center;
     padding: 20px 0;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 10px;
+  }
+
+  .policy-button {
+    background-color: #666;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .policy-button:hover {
+    background-color: #555;
+  }
+
+  @media (max-width: 768px) {
+    .nav-links {
+      flex-direction: column;
+    }
   }
 </style>

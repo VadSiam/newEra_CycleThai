@@ -42,6 +42,7 @@
       <h1>Dashboard</h1>
       <div class="header-buttons">
         <a href="/support" class="button support-button">Support</a>
+        <a href="/policy" class="button policy-button">Privacy Policy</a>
         <button on:click={handleSignOut} class="button logout-button"
           >Log out</button
         >
@@ -271,5 +272,15 @@
     padding: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     width: 100%;
+  }
+
+  .policy-button {
+    background-color: #666;
+    color: white;
+    text-transform: uppercase;
+  }
+
+  .policy-button:hover {
+    background-color: #555;
   }
 </style>

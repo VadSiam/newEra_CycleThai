@@ -1,5 +1,5 @@
 <script lang="ts">
-  const supportEmail = "cyclistevil@gmail.com";
+  const supportEmail = "support@cyclethai.com";
 
   function goBack() {
     history.back();
