@@ -20,6 +20,29 @@
   let rectangle: Rectangle | null = null;
   let startPoint: LatLng | null = null;
 
+  // Add default coordinates (will be used as fallback)
+  let defaultPosition: [number, number] = [18.7883, 98.9853];
+
+  // Add function to get user's position
+  async function getCurrentPosition(): Promise<[number, number]> {
+    if (!browser || !navigator.geolocation) {
+      return defaultPosition;
+    }
+
+    try {
+      const position = await new Promise<GeolocationPosition>(
+        (resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject);
+        },
+      );
+
+      return [position.coords.latitude, position.coords.longitude];
+    } catch (error) {
+      console.warn("Error getting geolocation:", error);
+      return defaultPosition;
+    }
+  }
+
   const isDeviceMobile = false; // Set this to your actual mobile detection logic
 
   function calculateCorners(bounds: LatLngBounds | null) {
@@ -41,14 +64,28 @@
   onMount(async () => {
     if (browser) {
       const leaflet = await import("leaflet");
-      map = leaflet.map(mapContainer).setView([18.7883, 98.9853], 13);
 
+      // Get user's position before initializing the map
+      const [lat, lng] = await getCurrentPosition();
+
+      map = leaflet.map(mapContainer).setView([lat, lng], 13);
+
+      // Using OpenStreetMap Carto (Standard) style with English labels
       leaflet
-        .tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        .tileLayer("https://tile.openstreetmap.de/{z}/{x}/{y}.png", {
+          maxZoom: 18,
           attribution:
             '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          locale: "en",
         })
         .addTo(map);
+
+      // Add a marker for user's location
+      // const userLocationMarker = leaflet
+      //   .marker([lat, lng], {
+      //     title: "Your Location",
+      //   })
+      //   .addTo(map);
 
       map.on("click", handleClick as LeafletEventHandlerFn);
       map.on("mousemove", handleMouseMove as LeafletEventHandlerFn);
@@ -155,7 +192,7 @@
   } */
   .map-container {
     width: 100%;
-    height: 50vh;
+    height: 80vh;
     min-height: 400px;
     max-height: 800px;
     position: relative;
