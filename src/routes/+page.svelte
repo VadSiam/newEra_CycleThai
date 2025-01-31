@@ -4,6 +4,9 @@
 
 <header>
   <nav>
+    <div class="logo-container">
+      <img src="/logo.png" alt="Strava Integration Logo" class="logo" />
+    </div>
     <SignIn
       options={{
         redirectTo: "/dashboard",
@@ -58,9 +61,20 @@
 
   nav {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    padding: 20px 0;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .logo-container {
+    margin-right: 20px;
+  }
+
+  .logo {
+    height: 40px;
+    width: auto;
   }
 
   .nav-links {
@@ -86,6 +100,16 @@
   }
 
   @media (max-width: 768px) {
+    nav {
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .logo-container {
+      margin-right: 0;
+      margin-bottom: 10px;
+    }
+
     .nav-links {
       flex-direction: column;
     }
