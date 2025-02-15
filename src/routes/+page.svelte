@@ -7,14 +7,29 @@
     <div class="logo-container">
       <img src="/logo.png" alt="Strava Integration Logo" class="logo" />
     </div>
-    <SignIn
-      options={{
-        redirectTo: "/dashboard",
-      }}
-      className="sign-in-button"
-    >
-      <span slot="submitButton">Sign in with Strava</span>
-    </SignIn>
+
+    <div class="auth-buttons">
+      <SignIn
+        provider="strava"
+        options={{
+          redirectTo: "/dashboard",
+        }}
+        className="sign-in-button strava"
+      >
+        <span slot="submitButton">Sign in with Strava</span>
+      </SignIn>
+
+      <SignIn
+        provider="garmin"
+        options={{
+          redirectTo: "/dashboard",
+        }}
+        className="sign-in-button garmin"
+      >
+        <span slot="submitButton">Sign in with Garmin</span>
+      </SignIn>
+    </div>
+
     <div class="nav-links">
       <a href="/support" class="support-button">Support</a>
       <a href="/policy" class="policy-button">Privacy Policy</a>
@@ -23,20 +38,35 @@
 </header>
 
 <main>
-  <h1>Welcome to Strava Integration</h1>
+  <h1>Welcome to CycleThai</h1>
   <p>Please sign in to access your dashboard.</p>
 </main>
 
 <style>
+  .auth-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
   :global(.sign-in-button) {
     background: none;
     border: none;
     padding: 0;
   }
 
-  :global(.sign-in-button button) {
+  :global(.sign-in-button.strava button) {
     background-color: #fc4c02;
     color: white;
+  }
+
+  :global(.sign-in-button.garmin button) {
+    background-color: #000;
+    color: white;
+  }
+
+  :global(.sign-in-button button) {
     border: none;
     border-radius: 4px;
     padding: 10px 20px;
@@ -46,8 +76,12 @@
     text-transform: uppercase;
   }
 
-  :global(.sign-in-button button:hover) {
+  :global(.sign-in-button.strava button:hover) {
     background-color: #e34402;
+  }
+
+  :global(.sign-in-button.garmin button:hover) {
+    background-color: #333;
   }
 
   main {
