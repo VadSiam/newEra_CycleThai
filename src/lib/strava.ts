@@ -21,13 +21,17 @@ export async function getLastActivities(accessToken: string, userId: string): Pr
     if (dbActivities.length > 0) {
       // Get latest activity date from DB
       const latestDBActivity = dbActivities[0]; // Assuming sorted desc
-      const after = Math.floor(new Date(latestDBActivity.start_date).getTime() / 1000);
+      // const after = Math.floor(new Date(latestDBActivity.start_date).getTime() / 1000);
       console.log('🔍 Latest activity in DB date:', new Date(latestDBActivity.start_date));
 
-      // Fetch only new activities from Strava
-      console.log('🚴 Fetching new activities from Strava after:', new Date(after * 1000));
+      // Create a constant for one week ago (in seconds since Unix epoch)
+      const after2 = getOneWeekAgoTimestamp();
+      console.log('📅 One week ago timestamp:', new Date(after2 * 1000));
+
+      // Use after for incremental sync (only new activities since last known)
+      // console.log('🚴 Fetching new activities from Strava after:', new Date(after * 1000));
       const newActivities = await strava.athlete.listActivities({
-        after,
+        after: after2,
         per_page: 30,
       });
       console.log('🚴 Found new activities from Strava:', newActivities.length);
@@ -42,9 +46,9 @@ export async function getLastActivities(accessToken: string, userId: string): Pr
     } else {
       // No activities in DB, fetch last 7 days
       console.log('📊 No activities in DB, fetching last 7 days from Strava');
-      const after = getOneWeekAgoTimestamp();
+      const after2 = getOneWeekAgoTimestamp();
       stravaActivities = await strava.athlete.listActivities({
-        after,
+        after: after2,
         per_page: 30,
       });
       console.log('🚴 Found activities from Strava:', stravaActivities.length);

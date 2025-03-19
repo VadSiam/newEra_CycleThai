@@ -21,6 +21,9 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
   trustHost: true,
   callbacks: {
     async jwt({ token, account, profile }) {
+      console.log('🚀 ~ token, account, profile:1', token)
+      console.log('🚀 ~ token, account, profile:2', account)
+      console.log('🚀 ~ token, account, profile:3', profile)
       if (account && profile) {
         token.accessToken = account.access_token;
         token.stravaId = profile.id;
