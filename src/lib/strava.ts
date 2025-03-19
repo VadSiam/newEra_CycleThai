@@ -6,6 +6,11 @@ function getOneWeekAgoTimestamp(): number {
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
   return Math.floor(oneWeekAgo.getTime() / 1000);
 }
+function get3DaysAgoTimestamp(): number {
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  return Math.floor(threeDaysAgo.getTime() / 1000);
+}
 
 export async function getLastActivities(accessToken: string, userId: string): Promise<any[]> {
   const strava = new (stravaApi.client as any)(accessToken);
@@ -25,7 +30,7 @@ export async function getLastActivities(accessToken: string, userId: string): Pr
       console.log('🔍 Latest activity in DB date:', new Date(latestDBActivity.start_date));
 
       // Create a constant for one week ago (in seconds since Unix epoch)
-      const after2 = getOneWeekAgoTimestamp();
+      const after2 = get3DaysAgoTimestamp();
       console.log('📅 One week ago timestamp:', new Date(after2 * 1000));
 
       // Use after for incremental sync (only new activities since last known)
@@ -46,7 +51,7 @@ export async function getLastActivities(accessToken: string, userId: string): Pr
     } else {
       // No activities in DB, fetch last 7 days
       console.log('📊 No activities in DB, fetching last 7 days from Strava');
-      const after2 = getOneWeekAgoTimestamp();
+      const after2 = get3DaysAgoTimestamp();
       stravaActivities = await strava.athlete.listActivities({
         after: after2,
         per_page: 30,
